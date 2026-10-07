@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TXT to Excel Sheet Converter</title>
+    <!-- Tailwind CSS (CDN) สำหรับจัดหน้าตาให้ทันสมัย -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- SheetJS Library สำหรับสร้างไฟล์ Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        * {
+            font-family: 'Sarabun', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-2xl bg-slate-800/80 backdrop-blur-lg border border-slate-700/50 rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6">
+        
+        <!-- Header -->
+        <div class="flex items-center space-x-3 border-b border-slate-700/60 pb-4">
+            <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                <i data-lucide="file-spreadsheet" class="w-7 h-7"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-white">TXT to Excel Converter</h1>
+                <p class="text-xs text-slate-400">รวมไฟล์ .txt หลายๆ ไฟล์เข้าเป็น Excel เดียวกันโดยแยก Sheet</p>
+            </div>
+        </div>
+
+        <!-- Form Elements -->
+        <div class="space-y-5">
+            
+            <!-- 1. Select TXT Files -->
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <i data-lucide="files" class="w-4 h-4 text-emerald-400"></i>
+                    1. เลือกไฟล์ .txt ที่ต้องการรวม
+                </label>
+                <div id="drop-zone" class="border-2 border-dashed border-slate-600 hover:border-emerald-500/70 bg-slate-900/40 rounded-xl p-6 text-center cursor-pointer transition-all duration-200 group">
+                    <input type="file" id="file-input" multiple accept=".txt" class="hidden">
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="p-3 bg-slate-800 text-slate-400 group-hover:text-emerald-400 group-hover:bg-emerald-500/10 rounded-full transition-colors">
+                            <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-sm text-slate-300 font-medium">คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่</p>
+                        <p class="text-xs text-slate-500">เลือกได้หลายไฟล์พร้อมกัน (.txt)</p>
+                    </div>
+                </div>
+                <!-- Selected Files List Info -->
+                <div id="file-count" class="text-xs text-emerald-400 font-medium hidden flex items-center gap-1">
+                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                    <span id="file-count-text">เลือกแล้ว 0 ไฟล์</span>
+                </div>
+            </div>
+
+            <!-- 2. Output File Setting -->
+            <div class="space-y-2">
+                <label for="output-name" class="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <i data-lucide="folder-output" class="w-4 h-4 text-emerald-400"></i>
+                    2. ตั้งชื่อไฟล์ Output (.xlsx)
+                </label>
+                <div class="relative">
+                    <input type="text" id="output-name" value="Combined_Output" placeholder="ตั้งชื่อไฟล์ผลลัพธ์..." 
+                           class="w-full bg-slate-900/60 border border-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-white text-sm rounded-xl px-4 py-3 pr-16 outline-none transition-all">
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500">.xlsx</span>
+                </div>
+            </div>
+
+            <!-- 3. Run Button -->
+            <button id="run-btn" onclick="processFiles()" 
+                    class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                <span>เริ่มประมวลผล (Run)</span>
+            </button>
+        </div>
+
+        <!-- 4. Progress & Status Section -->
+        <div id="status-card" class="bg-slate-900/80 border border-slate-700/60 rounded-xl p-4 space-y-3 hidden">
+            <div class="flex justify-between items-center text-xs">
+                <span id="status-text" class="text-slate-300 font-medium">กำลังเตรียมการ...</span>
+                <span id="status-percent" class="text-emerald-400 font-bold">0%</span>
+            </div>
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div id="progress-bar" class="bg-emerald-500 h-full w-0 transition-all duration-200"></div>
+            </div>
+            <!-- Console / Detail Log -->
+            <div id="log-box" class="text-[11px] font-mono text-slate-400 max-h-24 overflow-y-auto space-y-1 border-t border-slate-800 pt-2">
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileCount = document.getElementById('file-count');
+        const fileCountText = document.getElementById('file-count-text');
+        const runBtn = document.getElementById('run-btn');
+        const statusCard = document.getElementById('status-card');
+        const statusText = document.getElementById('status-text');
+        const statusPercent = document.getElementById('status-percent');
+        const progressBar = document.getElementById('progress-bar');
+        const logBox = document.getElementById('log-box');
+
+        let selectedFiles = [];
+
+        // Drag and drop event listeners
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-emerald-500', 'bg-emerald-500/5');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-emerald-500', 'bg-emerald-500/5');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-emerald-500', 'bg-emerald-500/5');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.txt'));
+            handleFilesSelection(files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFilesSelection(files);
+        });
+
+        function handleFilesSelection(files) {
+            if (files.length === 0) return;
+            selectedFiles = files;
+            fileCountText.textContent = `เลือกแล้ว ${selectedFiles.length} ไฟล์`;
+            fileCount.classList.remove('hidden');
+        }
+
+        function addLog(message, isError = false) {
+            const item = document.createElement('div');
+            item.className = isError ? 'text-red-400' : 'text-slate-400';
+            item.textContent = `> ${message}`;
+            logBox.appendChild(item);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        async function processFiles() {
+            if (selectedFiles.length === 0) {
+                alert('กรุณาเลือกไฟล์ .txt อย่างน้อย 1 ไฟล์');
+                return;
+            }
+
+            const outputNameInput = document.getElementById('output-name').value.trim();
+            const fileName = (outputNameInput || 'Combined_Output') + '.xlsx';
+
+            // UI Reset
+            statusCard.classList.remove('hidden');
+            logBox.innerHTML = '';
+            runBtn.disabled = true;
+            progressBar.style.width = '0%';
+            statusPercent.textContent = '0%';
+
+            addLog('เริ่มกระบวนการอ่านไฟล์...');
+
+            // Create XLSX Workbook
+            const wb = XLSX.utils.book_new();
+            const usedSheetNames = new Set();
+
+            for (let i = 0; i < selectedFiles.length; i++) {
+                const file = selectedFiles[i];
+                
+                // Update Progress UI
+                const progress = Math.round(((i + 1) / selectedFiles.length) * 100);
+                progressBar.style.width = `${progress}%`;
+                statusPercent.textContent = `${progress}%`;
+                statusText.textContent = `กำลังประมวลผล: ${file.name} (${i + 1}/${selectedFiles.length})`;
+
+                addLog(`อ่านไฟล์: ${file.name}`);
+
+                try {
+                    const text = await file.text();
+                    
+                    // แปลงบรรทัดใน TXT เป็น Array 2D
+                    // แยกตามบรรทัด และแยกคอลัมน์หากมี Tab (\t) หรือ Comma (,)
+                    const rows = text.split(/\r?\n/).map(line => {
+                        if (line.includes('\t')) return line.split('\t');
+                        return [line]; // หากไม่มี tab ให้มองเป็น 1 คอลัมน์
+                    });
+
+                    // สร้าง Worksheet
+                    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+                    // สร้างชื่อ Sheet (Excel จำกัดชื่อ Sheet ไม่เกิน 31 ตัวอักษร)
+                    let sheetName = file.name.replace(/\.txt$/i, '').replace(/[:\\/?*\[\]]/g, '_');
+                    if (sheetName.length > 31) {
+                        sheetName = sheetName.substring(0, 31);
+                    }
+
+                    // ป้องกันชื่อ Sheet ซ้ำกัน
+                    let uniqueSheetName = sheetName;
+                    let counter = 1;
+                    while (usedSheetNames.has(uniqueSheetName)) {
+                        const suffix = `_${counter}`;
+                        uniqueSheetName = sheetName.substring(0, 31 - suffix.length) + suffix;
+                        counter++;
+                    }
+                    usedSheetNames.add(uniqueSheetName);
+
+                    // เพิ่ม Sheet ลงใน Workbook
+                    XLSX.utils.book_append_sheet(wb, ws, uniqueSheetName);
+
+                } catch (err) {
+                    addLog(`เกิดข้อผิดพลาดกับไฟล์ ${file.name}: ${err.message}`, true);
+                }
+
+                // สลักเวลาเล็กน้อยเพื่อให้ UI Render ทัน
+                await new Promise(r => setTimeout(r, 50));
+            }
+
+            statusText.textContent = 'กำลังสร้างไฟล์ Excel และดาวน์โหลด...';
+            addLog('สร้างไฟล์ Excel สำเร็จ กำลังเริ่มดาวน์โหลด...');
+
+            // บันทึกและดาวน์โหลดไฟล์
+            XLSX.writeFile(wb, fileName);
+
+            statusText.textContent = 'เสร็จสิ้นเรียบร้อย!';
+            addLog(`บันทึกไฟล์สำเร็จ: ${fileName}`);
+            runBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
